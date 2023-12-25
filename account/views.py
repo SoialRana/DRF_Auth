@@ -44,19 +44,20 @@ class RegistrationView(APIView):
 
         if serializer.is_valid():
             user = serializer.save()
+            token, created = Token.objects.get_or_create(user=user)
 
             # USER ACTIVATION
             current_site = get_current_site(request)
             mail_subject = 'Please activate your account'
             message = f"Click the following link to activate your account: " \
-                      f"{current_site.domain}/api/activate/{urlsafe_base64_encode(force_bytes(user.pk))}/" \
+                      f"http://{current_site.domain}/account/activate/{urlsafe_base64_encode(force_bytes(user.pk))}/" \
                       f"{default_token_generator.make_token(user)}/"
 
             to_email = user.email
             send_email = EmailMessage(mail_subject, message, to=[to_email])
             send_email.send()
 
-            return Response({'detail': 'Registration successful. Check your email for activation instructions.'}, status=status.HTTP_201_CREATED)
+            return Response({'token':token.key,'detail': 'Registration successful. Check your email for activation instructions.'}, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -86,7 +87,8 @@ class ActivationView(APIView):
             user = Account._default_manager.get(pk=uid)
         except (TypeError, ValueError, OverflowError, Account.DoesNotExist):
             user = None
-
+            
+        #token, created = Token.objects.get_or_create(user=user)
         if user is not None and default_token_generator.check_token(user, token):
             user.is_active = True
             user.save()
