@@ -27,6 +27,9 @@ from .serializers import RegistrationSerializer
 from django.contrib.sites.shortcuts import get_current_site
 
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.http import JsonResponse
+from .models import BlacklistedToken
+from django.contrib.auth import logout
 
 
 def get_tokens_for_user(user):
@@ -127,6 +130,7 @@ class LoginApi(APIView): #login serializer k validate korbo data k liye
                 'message': 'Validation error',
                 'data': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
+            
         except ValidationError as e:
             return Response({
                 'status': 400,
@@ -143,10 +147,21 @@ class LoginApi(APIView): #login serializer k validate korbo data k liye
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+# class LogoutView(APIView):
+#     def post(self, request):
+#         request.auth.delete()
+#         return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+
 class LogoutView(APIView):
     def post(self, request):
-        request.auth.delete()
-        return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+        logout(request)
+        refresh_token = request.data.get('refresh_token')
+
+        if refresh_token:
+            BlacklistedToken.objects.create(token=refresh_token)
+
+        return JsonResponse({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+
 
 class ActivationView(APIView):
     def get(self, request, uidb64, token):

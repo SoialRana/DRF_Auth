@@ -8,6 +8,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields='__all__'
         
 class ProductReviewSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     class Meta:
         model=ProductReview
         fields='__all__'
