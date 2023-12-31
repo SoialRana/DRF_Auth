@@ -46,10 +46,6 @@ class RegistrationView(APIView):
 
         if serializer.is_valid():
             user = serializer.save()
-            # token, created = Token.objects.get_or_create(user=user)
-            refresh = RefreshToken.for_user(user)
-            access_token = str(refresh.access_token)
-            refresh_token = str(refresh)
 
             # USER ACTIVATION
             current_site = get_current_site(request)
@@ -63,11 +59,8 @@ class RegistrationView(APIView):
             send_email.send()
             
             return Response({
-                # 'access_token': access_token,
-                # 'refresh_token': refresh_token,
                 'detail': 'Registration successful. Check your email for activation instructions.'
             }, status=status.HTTP_201_CREATED)
-            # return Response({'token':token.key,'detail': 'Registration successful. Check your email for activation instructions.'}, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -78,27 +71,21 @@ class LoginView(APIView):
         password = request.data.get('password')
 
         user = authenticate(request, email=email, password=password)
-
-        # if user is not None:
-        #     token, created = Token.objects.get_or_create(user=user)
-        #     return Response({'token': token.key, 'user': UserSerializer(user).data}, status=status.HTTP_200_OK)
-        # else:
-        #     return Response({'detail': 'Invalid login credentials'}, status=status.HTTP_401_UNAUTHORIZED)
         
         if user is not None:
-            refresh = RefreshToken.for_user(user)
-            access_token = str(refresh.access_token)
-            refresh_token = str(refresh)
-
+            # refresh = RefreshToken.for_user(user)
+            # access_token = str(refresh.access_token)
+            # refresh_token = str(refresh) # we use this function in models.py so we can't use it again
             return Response({
-                'access_token': access_token,
-                'refresh_token': refresh_token,
+                # 'access_token': access_token,
+                # 'refresh_token': refresh_token,
+                'token': User.token,
                 'user': UserSerializer(user).data
             }, status=status.HTTP_200_OK)
         else:
             return Response({'detail': 'Your account is not activated. Please activate your account from the email'}, status=status.HTTP_401_UNAUTHORIZED)
         
-class LoginApi(APIView): #login serializer k validate korbo data k liye 
+class LoginApi(APIView): #we validate the login serailizer for data
     def post(self, request):
         try:
             data=request.data
@@ -111,7 +98,7 @@ class LoginApi(APIView): #login serializer k validate korbo data k liye
                 if user is None:
                     return Response({
                         'status': 401,  # Unauthorized
-                        'message': 'Invalid credentials',
+                        'message': 'Your account is not activated. Please activate your account from the email',
                         'data': {}
                     }, status=status.HTTP_401_UNAUTHORIZED)
                     
@@ -122,7 +109,7 @@ class LoginApi(APIView): #login serializer k validate korbo data k liye
                 return Response({
                     'access_token': access_token,
                     'refresh_token': refresh_token,
-                    'user': UserSerializer(user).data
+                    'user': UserSerializer(user).data,
                 }, status=status.HTTP_200_OK)
                 
             return Response({

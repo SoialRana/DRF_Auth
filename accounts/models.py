@@ -60,19 +60,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
 
     objects = MyAccountManager()
-    
-    
-    @property
-    def token(self):
-        refresh = RefreshToken.for_user(self)
-        return {
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-        }
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-    
+        
 
     def full_name(self):
         return f'{self.first_name} {self.last_name}'
