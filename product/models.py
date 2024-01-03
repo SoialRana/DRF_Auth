@@ -16,10 +16,10 @@ class ProductReview(models.Model):
     user=models.ForeignKey(User,on_delete=models.CASCADE)
     rating=models.IntegerField(choices=[(i, i) for i in range(1,6)])
     review=models.TextField()
-    created_at=models.DateTimeField(auto_now_add=True) #obj kokhon toiri hoiche setar time save korbe 
-    updated_at=models.DateTimeField(auto_now=True) #user jokhon review edit korbe tokhon time ta save korbe
+    created_at=models.DateTimeField(auto_now_add=True) 
+    updated_at=models.DateTimeField(auto_now=True) 
     class Meta:
-        unique_together=('product','user') #ekjon user jeno ektai comment korte pare seijonno eiline ta
+        unique_together=('product','user')
         
     def __str__(self):
         return f"{self.user.first_name} - {self.product.name} - Rating: {self.rating}"

@@ -15,7 +15,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 class ProductReviewViewSet(viewsets.ModelViewSet):
     queryset=models.ProductReview.objects.all()
     serializer_class=serializers.ProductReviewSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = []
 
     def create(self, request, *args, **kwargs):
         # Check if the access token is valid and not blacklisted

@@ -73,13 +73,14 @@ class LoginView(APIView):
         user = authenticate(request, email=email, password=password)
         
         if user is not None:
+            token=get_tokens_for_user(user)
             # refresh = RefreshToken.for_user(user)
             # access_token = str(refresh.access_token)
             # refresh_token = str(refresh) # we use this function in models.py so we can't use it again
             return Response({
                 # 'access_token': access_token,
                 # 'refresh_token': refresh_token,
-                'token': User.token,
+                'token': token,
                 'user': UserSerializer(user).data
             }, status=status.HTTP_200_OK)
         else:
@@ -102,14 +103,15 @@ class LoginApi(APIView): #we validate the login serailizer for data
                         'data': {}
                     }, status=status.HTTP_401_UNAUTHORIZED)
                     
-                refresh = RefreshToken.for_user(user)
-                access_token = str(refresh.access_token)
-                refresh_token = str(refresh)
-
+                # refresh = RefreshToken.for_user(user)
+                # access_token = str(refresh.access_token)
+                # refresh_token = str(refresh)
+                token=get_tokens_for_user(user)
                 return Response({
-                    'access_token': access_token,
-                    'refresh_token': refresh_token,
-                    'user': UserSerializer(user).data,
+                    # 'access_token': access_token,
+                    # 'refresh_token': refresh_token,
+                    'token': token,
+                    'user': LoginSerializer(user).data,
                 }, status=status.HTTP_200_OK)
                 
             return Response({
