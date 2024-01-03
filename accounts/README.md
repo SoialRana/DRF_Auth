@@ -99,7 +99,7 @@ title="profile_Image"/>
 
 # Table Syntax
 | Name | Email |  
-| ----- | ----|
+| ----- | ----| 
 | Sobuj | Text is here |
 | Sobuj | srsobuj150921@gmail.com |
 
