@@ -59,7 +59,7 @@ MIDDLEWARE = [
     'accounts.middleware.BlacklistTokenMiddleware' # newly middleware must be this middle ware set in last
 ]
 
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = 'accounts.User' # this function write before migrate and migration
 
 ROOT_URLCONF = 'Auth.urls'
 
@@ -145,6 +145,10 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    # 'DEFAULT_RENDERER_CLASSES': [
+    #     'rest_framework.renderers.JSONRenderer',
+    # ],
+    
     # 'DEFAULT_PERMISSION_CLASSES': [
     #     # 'rest_framework.permissions.AllowAny',
     #     'rest_framework.permissions.IsAuthenticated',

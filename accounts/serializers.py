@@ -1,7 +1,6 @@
  
 from rest_framework import serializers
 from .models import User
-
 class RegistrationSerializer(serializers.ModelSerializer):
     # We are writing this because we need confirm password field in our registration request
     confirm_password = serializers.CharField(style={'input_type':'password'},write_only=True)
@@ -24,7 +23,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data): 
-        # when we use userserializer
+        # when we use userserializer               
         password = validated_data.pop('password')
         confirm_password = validated_data.pop('confirm_password')
         user = User(**validated_data)
@@ -48,7 +47,5 @@ class LoginSerializer(serializers.ModelSerializer):
         model=User
         # fields=('first_name', 'last_name', 'phone_number','email','password')
         fields=('first_name','email','password')
-    
-
-    
-    
+        
+        
