@@ -28,7 +28,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
         return data
 
-    def create(self, validated_data): 
+    def create(self, validated_data): # create mane bujhacce ami j validated data dibo tar jonno 1ta model instance create korbe and ei model instance ta database e save korbe create j methode ta ace ei create methode ta jkhn call korbo tkhn oi model er 1ti instance create hbe and ei instance er jonno amr database e data gula save hbe so ei kaj ti create method kre ....validated data exactly hocche python dictionary ja cleaned input data contain kore thake 
         # when we use userserializer
         password = validated_data.pop('password')
         confirm_password = validated_data.pop('confirm_password')

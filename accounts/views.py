@@ -48,7 +48,7 @@ class RegistrationView(APIView):
         serializer = RegistrationSerializer(data=request.data)
 
         if serializer.is_valid():
-            user = serializer.save()
+            user = serializer.save() # jodi serialize er data gulo exactly valid hoi taile amader serializer er vitore j complex data gulo ache segula admin panel or database e giye save hobe  
 
             # USER ACTIVATION
             current_site = get_current_site(request)
