@@ -82,3 +82,9 @@ class BlacklistedToken(models.Model):
 
     def __str__(self):
         return self.token
+    
+    
+class Student(models.Model):
+    name=models.CharField(max_length=255, unique=True),
+    roll=models.IntegerField(),
+    city=models.CharField(max_length=255),

@@ -3,6 +3,8 @@ from .serializers import RegistrationSerializer,UserSerializer,LoginSerializer
 from rest_framework.authtoken.models import Token
 from django.shortcuts import get_object_or_404
 from .models import User
+from django.shortcuts import render,HttpResponse
+from django.template.response import TemplateResponse
 
 # Verification email
 from django.contrib.sites.shortcuts import get_current_site
@@ -165,3 +167,17 @@ class ActivationView(APIView):
         else:
             return Response({'detail': 'Invalid activation link.'}, status=status.HTTP_400_BAD_REQUEST)
 
+
+def home(request):
+    print("I am view")
+    return HttpResponse("This is home page")
+
+def excp(request):
+    print("I am Excp view")
+    a=10/0
+    return HttpResponse("This is excp page")
+
+def user_info(request):
+    print("I am user info view")
+    context={'name':'Rahul'}
+    return TemplateResponse(request, 'blog/user.html',context)
