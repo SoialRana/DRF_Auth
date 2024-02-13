@@ -1,4 +1,8 @@
 from django.contrib.auth import authenticate
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from .serializers import RegistrationSerializer,UserSerializer,LoginSerializer, UserProfileSerializer, UserChangePasswordSerializer, SendPasswordResetEmailSerializer, UserPasswordResetSerializer
 from .serializers import RegistrationSerializer,UserSerializer,LoginSerializer
 from rest_framework.authtoken.models import Token
 from django.shortcuts import get_object_or_404
@@ -10,9 +14,10 @@ from django.template.response import TemplateResponse
 from django.contrib.sites.shortcuts import get_current_site
 from django.template.loader import render_to_string
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
-from django.utils.encoding import force_bytes
-from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes, smart_str, DjangoUnicodeDecodeError
+from django.contrib.auth.tokens import default_token_generator, PasswordResetTokenGenerator
 from django.core.mail import EmailMessage
+from xml.dom import ValidationErr
 
 from rest_framework.exceptions import ValidationError
 from rest_framework import status
@@ -29,7 +34,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import JsonResponse
 from .models import BlacklistedToken
 from django.contrib.auth import logout
-
+from . renderers import UserRenderer
+from rest_framework.permissions import IsAuthenticated
 
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
@@ -40,7 +46,8 @@ def get_tokens_for_user(user):
     }
 
 class RegistrationView(APIView):
-    def post(self, request):
+    renderer_classes = [UserRenderer]
+    def post(self, request): # def post(self, request, format=None):
         serializer = RegistrationSerializer(data=request.data)
 
         if serializer.is_valid():
@@ -55,12 +62,12 @@ class RegistrationView(APIView):
 
             to_email = user.email
             send_email = EmailMessage(mail_subject, message, to=[to_email])
-            send_email.send()
-            
+            # send_email.send()            
             return Response({
                 'detail': 'Registration successful. Check your email for activation instructions.'
             }, status=status.HTTP_201_CREATED)
-
+        print(serializer.errors)
+        
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
  
@@ -85,7 +92,116 @@ class LoginView(APIView):
         else:
             return Response({'detail': 'Your account is not activated. Please activate your account from the email'}, status=status.HTTP_401_UNAUTHORIZED)
         
+
+
 class LoginApi(APIView): #we validate the login serailizer for data
+    renderer_classes = [UserRenderer]
+    def post(self, request):
+        data=request.data
+        serializer=LoginSerializer(data=data)
+        if serializer.is_valid():
+            email = request.data.get('email')
+            password = request.data.get('password')
+            user = authenticate(request, email=email, password=password)
+            
+            if user is None:
+                return Response({
+                    'status': 404,  # Unauthorized
+                    'message': 'Your account is not activated. Please activate your account from the email',
+                    'data': {}
+                }, status=status.HTTP_404_NOT_FOUND)
+                
+            # refresh = RefreshToken.for_user(user)
+            # access_token = str(refresh.access_token)
+            # refresh_token = str(refresh)
+            token=get_tokens_for_user(user)
+            return Response({
+                # 'access_token': access_token,
+                # 'refresh_token': refresh_token,
+                'msg' : 'login successful',
+                'token': token,
+                'user': LoginSerializer(user).data,
+            }, status=status.HTTP_200_OK)
+           
+        return Response({
+            'status': 400,
+            'message': 'Validation error',
+            'data': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+            
+
+
+# class LogoutView(APIView):
+#     def post(self, request):
+#         request.auth.delete()
+#         return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+
+class LogoutView(APIView):
+    def post(self, request):
+        logout(request)
+        refresh_token = request.data.get('refresh_token')
+
+        if refresh_token:
+            BlacklistedToken.objects.create(token=refresh_token)
+
+        return JsonResponse({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+
+
+class ActivationView(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User._default_manager.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+            
+        #token, created = Token.objects.get_or_create(user=user)
+        if user is not None and default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return Response({'detail': 'Account activated successfully.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Invalid activation link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserProfileView(APIView):
+    renderer_classes = [UserRenderer]
+    permission_classes = [IsAuthenticated]
+    def get(self, request, format = None):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        
+class UserPasswordChangeView(APIView):
+    renderer_classes = [UserRenderer]
+    permission_classes = [IsAuthenticated]
+    def post(self, request, format = None):
+        serializer = UserChangePasswordSerializer(data=request.data, context={'user':request.user})
+        if serializer.is_valid():
+            return Response({'msg':'Password Change Successful'}, status = status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SendPasswordResetEmailView(APIView):
+    renderer_classes = [UserRenderer]
+    def post(self, request):
+        serializer = SendPasswordResetEmailSerializer(data=request.data)
+        if serializer.is_valid():
+            return Response({'msg':'Password reset link send. Please check your email'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserPasswordResetView(APIView):
+    renderer_classes = [UserRenderer]
+    def post(self, request, uid, token):
+        serializer = UserPasswordResetSerializer(data=request.data, context={'uid':uid, 'token':token})
+        if serializer.is_valid():
+            return Response({'msg':'Password Reset Successfully'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+""" class LoginApi(APIView): #we validate the login serailizer for data
     def post(self, request):
         try:
             data=request.data
@@ -133,6 +249,7 @@ class LoginApi(APIView): #we validate the login serailizer for data
                 'message': 'Internal server error',
                 'data': {}
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+ """
 
 
 # class LogoutView(APIView):
