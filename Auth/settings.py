@@ -56,10 +56,17 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'accounts.middleware.BlacklistTokenMiddleware' # newly middleware must be this middle ware set in last
+    'accounts.middleware.BlacklistTokenMiddleware',# newly middleware must be this middle ware set in last
+    # 'accounts.middleware.MyMiddleware',
+    # 'accounts.middleware.BrotherMiddleware',
+    # 'accounts.middleware.FatherMiddleware',
+    # 'accounts.middleware.MotherMiddleware',
+    # 'accounts.middleware.MyProcessMiddleware',
+    # 'accounts.middleware.MyExceptionMiddleware',
+    'accounts.middleware.MyTemplateResponseMiddleware',
 ]
 
-AUTH_USER_MODEL = 'accounts.User'
+AUTH_USER_MODEL = 'accounts.User' # this function write before migrate and migration
 
 ROOT_URLCONF = 'Auth.urls'
 
@@ -145,6 +152,10 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    
+    # 'DEFAULT_RENDERER_CLASSES': [
+    #     'rest_framework.renderers.JSONRenderer',
+    # ],
     
     # 'DEFAULT_RENDERER_CLASSES': [
     #     'rest_framework.renderers.JSONRenderer',

@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework import serializers
 from .models import User
 from . utils import Util
+from .models import User,Student
 class RegistrationSerializer(serializers.ModelSerializer):
     # We are writing this because we need confirm password field in our registration request
     confirm_password = serializers.CharField(style={'input_type':'password'},write_only=True)
@@ -29,7 +30,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data): 
-        # when we use userserializer
+        # when we use userserializer               
         password = validated_data.pop('password')
         confirm_password = validated_data.pop('confirm_password')
         user = User(**validated_data)
@@ -136,3 +137,10 @@ class UserPasswordResetSerializer(serializers.Serializer):
     
 
 
+
+        
+        
+class StudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=Student
+        fields=['id','name','roll','city']

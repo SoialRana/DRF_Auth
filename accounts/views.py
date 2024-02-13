@@ -3,9 +3,12 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .serializers import RegistrationSerializer,UserSerializer,LoginSerializer, UserProfileSerializer, UserChangePasswordSerializer, SendPasswordResetEmailSerializer, UserPasswordResetSerializer
+from .serializers import RegistrationSerializer,UserSerializer,LoginSerializer
 from rest_framework.authtoken.models import Token
 from django.shortcuts import get_object_or_404
 from .models import User
+from django.shortcuts import render,HttpResponse
+from django.template.response import TemplateResponse
 
 # Verification email
 from django.contrib.sites.shortcuts import get_current_site
@@ -247,3 +250,51 @@ class UserPasswordResetView(APIView):
                 'data': {}
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
  """
+
+
+# class LogoutView(APIView):
+#     def post(self, request):
+#         request.auth.delete()
+#         return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+
+class LogoutView(APIView):
+    def post(self, request):
+        logout(request)
+        refresh_token = request.data.get('refresh_token')
+
+        if refresh_token:
+            BlacklistedToken.objects.create(token=refresh_token)
+
+        return JsonResponse({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+
+
+class ActivationView(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User._default_manager.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+            
+        #token, created = Token.objects.get_or_create(user=user)
+        if user is not None and default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return Response({'detail': 'Account activated successfully.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Invalid activation link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def home(request):
+    print("I am view")
+    return HttpResponse("This is home page")
+
+def excp(request):
+    print("I am Excp view")
+    a=10/0
+    return HttpResponse("This is excp page")
+
+def user_info(request):
+    print("I am user info view")
+    context={'name':'Rahul'}
+    return TemplateResponse(request, 'blog/user.html',context)

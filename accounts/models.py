@@ -69,11 +69,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     # def __str__(self):
     #     return self.email         
         
+    # def __str__(self):
+    #     return self.email
+    
     def get_email(self):
         return self.email
     def has_perm(self, perm, obj=None):
         return self.is_admin
 
+    # def has_module_perms(self, app_label):
     def has_module_perms(self, app_label):
         return True
     
@@ -92,3 +96,10 @@ class BlacklistedToken(models.Model):
     
         
 
+
+    
+    
+class Student(models.Model):
+    name=models.CharField(max_length=255, unique=True),
+    roll=models.IntegerField(),
+    city=models.CharField(max_length=255),
