@@ -11,6 +11,6 @@ router.register('reviews', ProductReviewViewSet,basename='product-review')
 
 urlpatterns = [
     path('',include(router.urls)),
-    # path('api_auth/',include("rest_framework.urls")),
+    path('api_auth/',include("rest_framework.urls")),
     
 ]
