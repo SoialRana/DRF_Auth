@@ -63,7 +63,7 @@ MIDDLEWARE = [
     # 'accounts.middleware.MotherMiddleware',
     # 'accounts.middleware.MyProcessMiddleware',
     # 'accounts.middleware.MyExceptionMiddleware',
-    'accounts.middleware.MyTemplateResponseMiddleware',
+    # 'accounts.middleware.MyTemplateResponseMiddleware',
 ]
 
 AUTH_USER_MODEL = 'accounts.User' # this function write before migrate and migration

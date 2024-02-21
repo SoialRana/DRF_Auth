@@ -14,3 +14,9 @@ class ReviewerOrReadOnly(permissions.BasePermission):
             return True
         else:
             return obj.user==request.user # 
+        
+class MyPermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if request.method == 'GET':  # 'POST' oo use kora jai
+            return True
+        return False
