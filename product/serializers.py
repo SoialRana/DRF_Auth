@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Product,ProductReview
 
 class ProductSerializer(serializers.ModelSerializer):
-    reviews=serializers.StringRelatedField(many=True)
+    # reviews=serializers.StringRelatedField(many=True)
     class Meta:
         model=Product
         fields='__all__'
