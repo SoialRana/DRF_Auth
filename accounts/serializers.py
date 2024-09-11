@@ -8,6 +8,8 @@ from rest_framework import serializers
 from .models import User
 from . utils import Util
 from .models import User,Student
+
+
 class RegistrationSerializer(serializers.ModelSerializer):
     # We are writing this because we need confirm password field in our registration request
     confirm_password = serializers.CharField(style={'input_type':'password'},write_only=True)
@@ -26,7 +28,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
         if password != confirm_password:
             raise serializers.ValidationError("Password and Confirm-Password doesn't match!")
-
         return data
 
     def create(self, validated_data): 
@@ -38,6 +39,15 @@ class RegistrationSerializer(serializers.ModelSerializer):
         user.save()
         return user
         # return User.objects.create_user(**validated_data) # When we use login serializer
+
+    """ def create(self, validated_data):
+        user = User.objects.create_user(
+            email=validated_data['email'],
+            password=validated_data['password'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name']
+        )
+        return user """
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -137,9 +147,6 @@ class UserPasswordResetSerializer(serializers.Serializer):
     
 
 
-
-        
-        
 class StudentSerializer(serializers.ModelSerializer):
     class Meta:
         model=Student

@@ -65,7 +65,7 @@ MIDDLEWARE = [
     # 'accounts.middleware.MyExceptionMiddleware',
     'accounts.middleware.MyTemplateResponseMiddleware',
 ]
-
+# add the following line to let Django know that you're using a custom user model:
 AUTH_USER_MODEL = 'accounts.User' # this function write before migrate and migration
 
 ROOT_URLCONF = 'Auth.urls'
@@ -177,7 +177,10 @@ from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
 }
+
 
 # SMTP configuration
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
