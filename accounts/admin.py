@@ -6,7 +6,7 @@ from .models import User
 
 # @admin.register(User)   # eta likhle nicher register ti likha lagbe na 
 class AccountAdmin(UserAdmin):
-    list_display = ('email', 'first_name', 'last_name', 'username', 'updated_at', 'created_at', 'is_active')
+    list_display = ('email','id', 'first_name', 'last_name', 'username', 'updated_at', 'created_at', 'is_active')
     # fieldsets = [
     #     ('User Credentials', {"fields": ["email", "password"]}),
     #     ("Personal info", {"fields": ["username", "first_name"]}),

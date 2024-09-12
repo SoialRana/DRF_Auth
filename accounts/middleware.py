@@ -32,7 +32,7 @@ class MyMiddleware:
         return response    
     
     
-""" class BrotherMiddleware:
+class BrotherMiddleware:
     def __init__(self,get_response):
         self.get_response=get_response
         print("One time brother initialization")
@@ -72,7 +72,7 @@ class MotherMiddleware:
         response=self.get_response(request)
         # Code to be executed for each request/response after the view is called.
         print("this is Mother after view")
-        return response  """
+        return response 
     
 
 # process_view 

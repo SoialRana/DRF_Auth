@@ -5,6 +5,7 @@ from rest_framework_simplejwt.views import TokenRefreshView, TokenVerifyView,Tok
 urlpatterns = [
     path('register/', views.RegistrationView.as_view(), name='register'),
     path('logout/', views.LogoutView.as_view(), name='logout'),
+    path('token/blacklist/', views.BlackListTokenView.as_view(), name='token_blacklist'),
     # path('login/', views.LoginView.as_view(), name='login'),
     path('login/', views.LoginApi.as_view(), name='login'),
     path('profile/', views.UserProfileView.as_view(), name='profile'),
