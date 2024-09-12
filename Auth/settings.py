@@ -39,9 +39,11 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'accounts',
     'product',
+    'blog',
     'rest_framework',
     # 'rest_framework.authtoken',
     'rest_framework_simplejwt',
+    # 'rest_framework_simplejwt.token_blacklist',
     # 'django_filters',
     
 ]
@@ -63,7 +65,7 @@ MIDDLEWARE = [
     # 'accounts.middleware.MotherMiddleware',
     # 'accounts.middleware.MyProcessMiddleware',
     # 'accounts.middleware.MyExceptionMiddleware',
-    'accounts.middleware.MyTemplateResponseMiddleware',
+    # 'accounts.middleware.MyTemplateResponseMiddleware',
 ]
 # add the following line to let Django know that you're using a custom user model:
 AUTH_USER_MODEL = 'accounts.User' # this function write before migrate and migration
@@ -175,11 +177,12 @@ REST_FRAMEWORK = {
 
 from datetime import timedelta
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }
+
 
 
 # SMTP configuration
