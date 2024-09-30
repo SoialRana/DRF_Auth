@@ -5,49 +5,44 @@ from django.core.mail import EmailMessage
 from xml.dom import ValidationErr
 from rest_framework.exceptions import ValidationError
 from rest_framework import serializers
-from .models import User
-from . utils import Util
-from .models import User,Student
+# from .models import User
+from . utils import send_activation_email
+from .models import Student
+from django.contrib.auth import get_user_model
 
-
+User = get_user_model()
 class RegistrationSerializer(serializers.ModelSerializer):
     # We are writing this because we need confirm password field in our registration request
+    email = serializers.EmailField(required=True)
     confirm_password = serializers.CharField(style={'input_type':'password'},write_only=True)
 
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'phone_number', 'email','username', 'password', 'confirm_password']
+        fields = ['email', 'password', 'confirm_password']
         extra_kwargs={
         'password':{'write_only':True}
         }
 
     # Validating password and confirm password while registration 
     def validate(self, data):
-        password = data.get('password')
-        confirm_password = data.get('confirm_password')
-
-        if password != confirm_password:
+        if data["password"] != data["confirm_password"]:
             raise serializers.ValidationError("Password and Confirm-Password doesn't match!")
         return data
 
-    def create(self, validated_data): 
-        # when we use userserializer               
-        password = validated_data.pop('password')
-        confirm_password = validated_data.pop('confirm_password')
-        user = User(**validated_data)
-        user.set_password(password)
-        user.save()
-        return user
-        # return User.objects.create_user(**validated_data) # When we use login serializer
-
-    """ def create(self, validated_data):
+    def create(self, validated_data):
         user = User.objects.create_user(
             email=validated_data['email'],
-            password=validated_data['password'],
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name']
+            password=validated_data['password']
         )
-        return user """
+        # user.set_password(validated_data['password']) #create_user already handles password hashing, so no need for set_password
+        user.is_active=False #user will remain inactive untill email verification
+        user.save()
+        
+        # send activation email
+        # Access the request object from context
+        request=self.context.get('request') # Get request object from context
+        send_activation_email(user,request)
+        return user
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -59,23 +54,36 @@ class UserSerializer(serializers.ModelSerializer):
 
 class LoginSerializer(serializers.ModelSerializer):
     email=serializers.EmailField()
-    password=serializers.CharField()
+    password=serializers.CharField(write_only=True,style={'input_type':'password'})
     class Meta:
         model=User
         # fields=('first_name', 'last_name', 'phone_number','email','password')
-        fields=('first_name','email','password')
+        fields=('email','password')
+    def validate(self,data):
+        email=data.get('email')
+        password=data.get('password')
+        if not email or not password:
+            raise serializers.ValidationError("Email or password both are required")
+        return data
     
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    email=serializers.EmailField(read_only=True)
     class Meta:
         model = User
-        fields = ['email', 'username']
+        fields = ['email','first_name']
+        read_only_fields=['email',]
+        
+    def update(self,instance,validated_data):
+        instance.first_name=validated_data.get('first_name',instance.first_name)
+        instance.save()
+        return instance
     
     
 class UserChangePasswordSerializer(serializers.Serializer):
     password = serializers.CharField(max_length = 50, style = {'input_type': 'password'}, write_only = True)
-    
     confirm_password = serializers.CharField(max_length = 50, style = {'input_type':'password'}, write_only = True)
+    
     class Meta:
         fields = ['password', 'confirm_password']
         
