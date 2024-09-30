@@ -1,0 +1,335 @@
+# if we declare this two line with blank=True in User class then we must be use below create_user and 
+super_user method with extra_fields. otherwise must be show error
+    first_name      = models.CharField(max_length=50,blank=True)
+    last_name       = models.CharField(max_length=50,blank=True)
+
+# then this will be the those method
+
+ class MyAccountManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        # Ensure email and username are provided
+        if not email:
+            raise ValueError('Users must have an email address')
+        if not extra_fields.get('username'):
+            raise ValueError('Users must have a username')
+        
+        # Normalize the email and create the user with extra fields
+        email = self.normalize_email(email)
+        user = self.model(
+            email=email,
+            **extra_fields  # handle first_name, last_name, username via extra_fields
+        )
+        
+        # Set password (hashed)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        # Set default values for the superuser-specific fields
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+        extra_fields.setdefault('is_admin', True)
+        extra_fields.setdefault('is_superadmin', True)
+
+        # Ensure the correct flags are set
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(email, password, **extra_fields)
+
+
+
+
+
+# when we use this Callable function 
+
+# Callable function to display a custom active status message
+    #Callable functions can be used in admin.py to add custom logic that doesn't necessarily need to reside in the model itself. These functions take an instance of the model as an argument and return a value to be displayed in the admin interface.
+    def custom_active_status(self,obj): # here we must be use self variable otherwise show below error 
+        if obj.is_active:
+            return "Active User"
+        return "Inactive User"
+    custom_active_status.short_description = 'Active Status'
+    list_display = ['email', 'first_name', 'last_name','username','custom_active_status']
+    # here if we don't use self variable then show this error . if we use show this error: TypeError: AccountAdmin.custom_active_status() takes 1 positional argument but 2 were given
+
+
+    """ 
+    # Callable Methods on the Model......when we use callable method this time we must be declare those callable method(full_name in our models.py) in our list_display to understand the difference
+    list_display = ['email', 'first_name', 'last_name','full_name','username',]
+    
+    # Properties on the Model
+    # You can also use properties, which are similar to methods but are accessed like attributes (without parentheses). Properties allow you to calculate or format data dynamically.
+    """
+
+
+# Email activation
+    """ current_site = get_current_site(request)
+mail_subject = 'Please activate your account'
+message = f"Click the following link to activate your account: " \
+            f"http://{current_site.domain}/account/activate/{urlsafe_base64_encode(force_bytes(user.pk))}/" \
+            f"{default_token_generator.make_token(user)}/"
+
+to_email = user.email
+send_email = EmailMessage(mail_subject, message, to=[to_email])
+send_email.send() """  
+
+
+
+
+
+# Registration with email verification For django 
+
+class RegistrationView(APIView):
+    renderer_classes = [UserRenderer]
+    def post(self, request): # def post(self, request, format=None):
+        serializer = RegistrationSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            user = serializer.save()
+
+            # USER ACTIVATION
+  
+            current_site = get_current_site(request)
+            mail_subject = 'Please activate your account'
+
+            # Use format() for cleaner string formatting
+            message = (
+                "Click the following link to activate your account: "
+                "http://{domain}/account/activate/{uidb64}/{token}/"
+            ).format(
+                domain=current_site.domain,
+                uidb64=urlsafe_base64_encode(force_bytes(user.pk)),
+                token=default_token_generator.make_token(user)
+            )
+
+            to_email = user.email
+            send_email = EmailMessage(mail_subject, message, to=[to_email])
+
+            # Don't forget to send the email
+            send_email.send()        
+            return Response({
+                'detail': 'Registration successful. Check your email for activation instructions.'
+            }, status=status.HTTP_201_CREATED)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+    # return User.objects.create_user(**validated_data) # When we use login serializer
+
+
+""" def create(self, validated_data):
+    user = User.objects.create_user(
+        email=validated_data['email'],
+        password=validated_data['password'],
+        first_name=validated_data['first_name'],
+        last_name=validated_data['last_name']
+    )
+        return user """
+
+
+
+
+This is the view for django Registration view 
+
+class RegistrationView(APIView):
+    renderer_classes = [UserRenderer]
+    def post(self, request): # def post(self, request, format=None):
+        serializer = RegistrationSerializer(data=request.data)
+        
+        if serializer.is_valid():
+            user = serializer.save()
+
+            # USER ACTIVATION
+  
+            current_site = get_current_site(request)
+            mail_subject = 'Please activate your account'
+
+            # Use format() for cleaner string formatting
+            message = (
+                "Click the following link to activate your account: "
+                "http://{domain}/account/activate/{uidb64}/{token}/"
+            ).format(
+                domain=current_site.domain,
+                uidb64=urlsafe_base64_encode(force_bytes(user.pk)),
+                token=default_token_generator.make_token(user)
+            )
+
+            to_email = user.email
+            send_email = EmailMessage(mail_subject, message, to=[to_email])
+
+            # Don't forget to send the email
+            send_email.send()        
+            return Response({
+                'detail': 'Registration successful. Check your email for activation instructions.'
+            }, status=status.HTTP_201_CREATED)
+        print(serializer.errors)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# activation view for django 
+
+class ActivationView(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User._default_manager.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+            
+        #token, created = Token.objects.get_or_create(user=user)
+        if user is not None and default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return Response({'detail': 'Account activated successfully.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Invalid activation link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+# Custom user model..............
+class MyAccountManager(BaseUserManager):
+    def create_user(self, first_name, last_name, username, email, password=None):
+        # create and return a regular user(or save a user) with an email and password 
+        if not email:
+            raise ValueError('Users must have an email address')
+
+        if not username:
+            raise ValueError('Users must have an username')
+
+        user = self.model(
+            email = self.normalize_email(email), # Normalize the email to a consistent format (lowercase)
+            username = username,
+            first_name = first_name,
+            last_name = last_name,
+        ) # create a new user instance ...the user model is created using self.model which refers to custom user model 
+
+        user.set_password(password) # set the password for the user (hash version) ..set_password method is used to hash the password before storing it 
+        user.save(using=self._db) # save the user to the database 
+        return user
+
+    def create_superuser(self, first_name, last_name, email, username, password=None):
+        # Same as create_user(), but also includes extra_fields which specify additional fields like is_staff and is_superuser.
+        # create and return (save) a super user with an email and password 
+        user = self.create_user(
+            email=email,
+            # email, # we can use above line also
+            # email = self.normalize_email(email),
+            username = username,
+            password = password,
+            first_name = first_name,
+            last_name = last_name,
+        )
+        user.is_admin = True
+        user.is_active = True
+        user.is_staff = True
+        user.is_superadmin = True
+        
+        user.save(using=self._db)
+        return user
+
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+    #TODO this should be rename to USER 
+    email           = models.EmailField(max_length=100, unique=True)
+    first_name      = models.CharField(max_length=50)
+    last_name       = models.CharField(max_length=50)
+    username        = models.CharField(max_length=50)
+    phone_number    = models.CharField(max_length=50)
+
+    # required
+    created_at     = models.DateTimeField(auto_now_add=True)
+    # created_at     = models.DateTimeField(default=timezone.now())
+    updated_at      = models.DateTimeField(auto_now=True)
+    is_admin        = models.BooleanField(default=False)
+    is_staff        = models.BooleanField(default=False) #Determines if the user can access the admin interface.
+    is_active       = models.BooleanField(default=False) #Determines if the user account is active.
+    is_superadmin   = models.BooleanField(default=False)
+
+    USERNAME_FIELD = 'email' # This specifies the field to be used for login... use email to login instead of username 
+    REQUIRED_FIELDS = ['username', 'first_name', 'last_name'] # This is a list of fields that required when creating a superuser (besides the username_field) list any required fields besides 'email
+
+    objects = MyAccountManager() # objects = MyAccountManager(): This sets MyAccountManager as the manager for this model. This means all interactions with the User model (such as creating users or querying users) will be handled by MyAccountManager.
+        
+        
+    #Callable Methods on the Model
+    """ def full_name(self): 
+        return f'{self.first_name} {self.last_name}' """
+
+
+@property
+    def full_name(self):
+        #Here, full_name is a property that dynamically combines the first_name and last_name
+        return f"{self.first_name} {self.last_name}".strip()
+        #The strip() ensures that it returns a clean string even if one of the fields is blank.
+    
+    
+    # def __str__(self):
+    #     return self.email     # This method defines how the object should be represented as a string. In this case, the user’s email is returned when the object is printed.
+    
+    def get_email(self):
+        return self.email
+    def has_perm(self, perm, obj=None):
+        return self.is_admin
+
+    # def has_module_perms(self, app_label):
+    def has_module_perms(self, app_label):
+        return True
+    
+    # @property
+    # def is_staff(self):
+    #     return self.is_admin
+    
+
+# serializers.py file 
+class RegistrationSerializer(serializers.ModelSerializer):
+    # We are writing this because we need confirm password field in our registration request
+    confirm_password = serializers.CharField(style={'input_type':'password'},write_only=True)
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'phone_number', 'email','username', 'password', 'confirm_password']
+        extra_kwargs={
+        'password':{'write_only':True}
+        }
+
+    # Validating password and confirm password while registration 
+    def validate(self, data):
+        password = data.get('password')
+        confirm_password = data.get('confirm_password')
+
+        if password != confirm_password:
+            raise serializers.ValidationError("Password and Confirm-Password doesn't match!")
+        return data
+
+    """ def create(self, validated_data): 
+        # when we use userserializer               
+        password = validated_data.pop('password')
+        confirm_password = validated_data.pop('confirm_password')
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
+        # return User.objects.create_user(**validated_data) # When we use login serializer
+ """
+    def create(self, validated_data):
+        user = User.objects.create(
+            email=validated_data['email'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name']
+        )
+        user.set_password(validated_data['password'])
+        user.is_active=False #user will remain inactive untill email verification
+        user.save()
+        
+        # send activation email
+        request=self.context.get('request') # Get request object from context
+        send_activation_email(user,request)
+        return user

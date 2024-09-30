@@ -1,0 +1,616 @@
+class RegistrationView(APIView):
+    # renderer_classes = [UserRenderer]
+    def post(self, request):
+        # pass the request object to the serializer context
+        serializer = RegistrationSerializer(data=request.data)
+
+        if serializer.is_valid():
+            user = serializer.save()
+            token = get_tokens_for_user(user)
+            print(f"Token: {token}")
+            # Generate activation token and uid
+            # uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+            # Get the current domain
+            current_site = get_current_site(request)
+            activation_link = f'http://{current_site.domain}/account/activate/{token["access"]}'
+            print(f"This is activation link{activation_link}")
+            # Send activation email
+            send_mail(
+                'Activate Your Account',
+                f'Please click the activation link to activate your account: {activation_link}',
+                settings.EMAIL_HOST_USER,
+                [user.email],
+                fail_silently=False,
+            )
+            
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+from django.contrib.auth import authenticate
+from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.tokens import RefreshToken
+
+User = get_user_model()
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        email = data.get('email', None)
+        password = data.get('password', None)
+
+        if email is None or password is None:
+            raise serializers.ValidationError('Both "email" and "password" are required.')
+
+        # Authenticate the user
+        user = authenticate(email=email, password=password)
+
+        if user is None:
+            raise AuthenticationFailed('Invalid credentials or account not found.')
+
+        if not user.is_active:
+            raise AuthenticationFailed('Account is not active. Please verify your email.')
+
+        # If authentication is successful, include tokens in the response
+        refresh = RefreshToken.for_user(user)
+        data = {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+        }
+        return data
+
+
+class RegistrationView(APIView):
+    # renderer_classes = [UserRenderer]
+    def post(self, request):
+        # pass the request object to the serializer context
+        serializer = RegistrationSerializer(data=request.data,context={'request': request})
+
+        if serializer.is_valid():
+            user = serializer.save(request=request)
+            # this is for custom JWT token creation
+            '''token = get_tokens_for_user(user)
+            print(f"Token: {token}")
+            # Generate activation token and uid
+            # uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
+            # Get the current domain
+            current_site = get_current_site(request)
+            activation_link = f'http://{current_site.domain}/account/activate/{token["access"]}'
+            print(f"This is activation link{activation_link}")
+            # Send activation email
+            send_mail(
+                'Activate Your Account',
+                f'Please click the activation link to activate your account: {activation_link}',
+                settings.EMAIL_HOST_USER,
+                [user.email],
+                fail_silently=False,
+            ) '''
+            send_activation_email(user,request)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+''' from django.contrib.auth.tokens import default_token_generator
+class ActivationView(APIView):
+    def get(self,request,token):
+        # logger.debug(f"TOken koi: {token}")
+        # print(f"Token3: {token}")
+        user_id = token_decoder(token)
+        print(f"This is user_id:{user_id}")
+        # Check if the token is valid
+        if user_id is None:
+            return Response({'error': 'Activation link is invalid or has expired!'}, status=status.HTTP_400_BAD_REQUEST)
+        # Attempt to retrieve the user and activate the account
+        try:
+            # user_id = force_str(urlsafe_base64_decode(uidb64))
+            user = get_object_or_404(User, pk=user_id)
+            if user.is_active:
+                return Response({'message': 'Account is already activated!'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            user.is_active = True
+            user.save()
+            return Response({'message': 'Account activated successfully!'}, status=status.HTTP_200_OK)
+                # return Response({'error': 'Activation link is invalid or has expired!'}, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({'error': 'Activation link is invalid!'}, status=status.HTTP_400_BAD_REQUEST)      
+'''
+
+
+
+""" # Set user to inactive until email verification
+            user.is_active = False
+            user.save()
+            # Send the activation email
+            try:
+                send_activation_email(user, request)
+            except Exception as e:
+                logger.error(f"Error while sending activation email: {str(e)}")
+                # Handle potential exceptions with email sending
+                return Response({'message': 'User registered successfully, but there was an error sending the activation email.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+            return Response({'message': 'User registered successfully. Please check your email for the activation link.'},serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) """
+
+""" try:
+            # Decode the JWT token to get the user ID
+            user_id = urlsafe_base64_decode(uidb64).decode()
+            # user = get_user_model().objects.get(pk=user_id)
+
+            # Get the user based on the ID
+            user = User.objects.get(pk=user_id)
+            
+            # Verify the token
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms='HS256')
+            # if payload.get('user_id') == user_id:
+            if payload.get('user_id') == str(user_id):
+                if user.is_active:
+                    return Response({'detail': 'Account already activated.'}, status=status.HTTP_200_OK)
+                user.is_active = True
+                user.save()
+            # Activate the user
+            # user.is_active = True
+            # user.save()
+                return Response({'detail': 'Account activated successfully.'}, status=status.HTTP_200_OK)
+
+        except jwt.ExpiredSignatureError:
+            return Response({'detail': 'Activation link has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+        except jwt.DecodeError:
+            return Response({'detail': 'Invalid token.'}, status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_400_BAD_REQUEST)
+ """
+
+ 
+''' class LoginView(APIView):
+    def post(self, request):
+        email = request.data.get('email')
+        password = request.data.get('password')
+
+        user = authenticate(request, email=email, password=password)
+        
+        if user is not None:
+            token=get_tokens_for_user(user)
+            return Response({
+                'token': token,
+                'user': UserSerializer(user).data
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Your account is not activated. Please activate your account from the email'}, status=status.HTTP_401_UNAUTHORIZED) '''
+        
+
+
+'''class SendPasswordResetEmailView(APIView):
+    renderer_classes = [UserRenderer]
+    def post(self, request):
+        serializer = SendPasswordResetEmailSerializer(data=request.data)
+        if serializer.is_valid():
+            return Response({'msg':'Password reset link send. Please check your email'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserPasswordResetView(APIView):
+    renderer_classes = [UserRenderer]
+    def post(self, request, uid, token):
+        serializer = UserPasswordResetSerializer(data=request.data, context={'uid':uid, 'token':token})
+        if serializer.is_valid():
+            return Response({'msg':'Password Reset Successfully'}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+         '''
+
+
+'''""" class LoginApi(APIView): #we validate the login serailizer for data
+    def post(self, request):
+        try:
+            data=request.data
+            serializer=LoginSerializer(data=data)
+            if serializer.is_valid():
+                email=serializer.data['email']
+                password=serializer.data['password']
+                user = authenticate(request,email=email, password=password)
+                
+                if user is None:
+                    return Response({
+                        'status': 401,  # Unauthorized
+                        'message': 'Your account is not activated. Please activate your account from the email',
+                        'data': {}
+                    }, status=status.HTTP_401_UNAUTHORIZED)
+                    
+                # refresh = RefreshToken.for_user(user)
+                # access_token = str(refresh.access_token)
+                # refresh_token = str(refresh)
+                token=get_tokens_for_user(user)
+                return Response({
+                    # 'access_token': access_token,
+                    # 'refresh_token': refresh_token,
+                    'token': token,
+                    'user': LoginSerializer(user).data,
+                }, status=status.HTTP_200_OK)
+                
+            return Response({
+                'status': 400,
+                'message': 'Validation error',
+                'data': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        except ValidationError as e:
+            return Response({
+                'status': 400,
+                'message': 'Validation error',
+                'data': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            print(e)
+            return Response({
+                'status': 500,
+                'message': 'Internal server error',
+                'data': {}
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+ """
+
+
+# class LogoutView(APIView):
+#     def post(self, request):
+#         request.auth.delete()
+#         return Response({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+
+class LogoutView(APIView):
+    def post(self, request):
+        logout(request)
+        refresh_token = request.data.get('refresh_token')
+
+        if refresh_token:
+            BlacklistedToken.objects.create(token=refresh_token)
+
+        return JsonResponse({'detail': 'Successfully logged out.'}, status=status.HTTP_200_OK)
+
+
+class ActivationView(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User._default_manager.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+            
+        #token, created = Token.objects.get_or_create(user=user)
+        if user is not None and default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return Response({'detail': 'Account activated successfully.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'detail': 'Invalid activation link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+Key Changes:
+Accessing validated_data: Use serializer.validated_data instead of request.data to ensure the data is properly validated.
+
+Error Message for Authentication: Now checks for both incorrect credentials and inactive users. The error message is more generic (Invalid credentials or account is not activated.) to cover both cases.
+
+Token Generation: The get_tokens_for_user() function generates JWT tokens (refresh and access).
+
+Serialized User Data: In the response, only non-sensitive user fields like email are returned. Avoid exposing the password or other sensitive fields in the response.
+
+HTTP Status Codes: Used HTTP 401 (Unauthorized) for invalid credentials or inactive account instead of 404, which is more appropriate.
+
+
+Post Request: The logout view expects a POST request containing the user's refresh token in the body.
+Token Blacklisting: The refresh token is passed to RefreshToken() and then blacklisted using token.blacklist(). This invalidates the token, preventing further use.
+
+
+Check: Add a print("Reached ActivationView") at the start of the get method in ActivationView to verify that the request reaches the view.
+
+3. Check if You're Using uidb64 Elsewhere
+The error references uidb64, which is commonly used in Django's default password reset or activation flows, where the uidb64 represents a base64-encoded user ID. If you don’t need uidb64, make sure you are not using it accidentally in your custom implementation.
+
+If you meant to use uidb64 (e.g., if it's part of your custom flow), you will need to ensure that your view signature includes both uidb64 and token:
+
+python
+Copy code
+class ActivationView(APIView):
+    def get(self, request, uidb64, token):
+        # Decode the uidb64 and handle token logic
+
+
+Double-check your urls.py to ensure that you are passing only the token parameter and not uidb64 (which is not needed here).
+
+
+
+1. Check for Old Code Using uidb64
+The error suggests that somewhere in your project, there’s still code referring to uidb64. This may be residual code from an old implementation of account activation that relied on uidb64 and token (from Django’s default password reset or email confirmation flows).
+
+To resolve this:
+
+Search your codebase for any instances of uidb64, particularly in views, URLs, or old templates. Make sure that the activation process relies solely on the JWT token.
+
+
+
+2. Inspect URL Redirection and Trailing Slashes
+Your error log shows an HTTP 301 response ("GET /account/activate/... HTTP/1.1" 301 0), which indicates a redirect. This could be caused by missing or extra trailing slashes in your URL.
+
+Solution:
+Make sure that the URL pattern and the way you are calling the activation link match exactly, especially with trailing slashes.
+
+Update your urls.py to make sure the trailing slashes are consistent:
+
+
+3. Inspect the Request URL
+From the logs, it seems you are passing the token correctly in the URL (as part of the activation link). However, check how the link is generated and ensure there are no extra parameters like uidb64.
+
+For example, if you are sending the activation link via email, ensure that you are generating the URL correctly and not adding unnecessary arguments:
+
+
+4. Check ActivationView Definition
+Make sure your ActivationView only expects the token and handles it correctly.
+
+5. Clear Browser Cache and Test Again
+As old caches can sometimes cause similar issues, clear your browser cache and retry the activation flow with a new token.
+
+
+The code you've written seems mostly correct, but if you're not seeing the token being printed in the token_decoder function, a few things could be happening. Here’s how we can troubleshoot and improve it:
+
+1. Ensure the token_decoder function is being called
+First, ensure that the token_decoder function is actually being called within the view or wherever it's being used. If you're expecting to see print(f"Token2: {token}"), but it’s not showing up, the function might not be invoked.
+
+Check where you are calling token_decoder(token) and ensure the token passed is valid.
+
+
+You can also manually decode the token using an online JWT decoder (e.g., https://jwt.io) to ensure the token structure is correct.
+
+
+
+4. Check Django Logs or Debug Mode
+Ensure that Django's DEBUG mode is turned on during development. It will print additional error messages, which can help identify what’s going wrong:
+
+python
+Copy code
+# settings.py
+DEBUG = True
+Make sure to check the logs when testing to see if Django is suppressing any errors.
+
+
+
+2. Check if the View is Reached
+You mentioned that you can't print the token. If the print(f"Token: {token}") statement is not showing up in the console, the view might not be reached. To ensure this, add logging at different points in your code:
+
+python
+Copy code
+import logging
+
+logger = logging.getLogger(__name__)
+
+class ActivationView(APIView):
+    def get(self, request, token):
+        logger.debug(f"Token: {token}")  # Use logging instead of print for better control
+        print(f"Token: {token}")  # Ensure this is being printed
+
+        user_id = token_decoder(token)
+
+        if user_id is None:
+            return Response({'error': 'Activation link is invalid or has expired!'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = get_object_or_404(User, pk=user_id)
+            user.is_active = True
+            user.save()
+            return Response({'message': 'Account activated successfully!'}, status=status.HTTP_200_OK)
+        except Http404:
+            return Response({'error': 'Activation link is invalid!'}, status=status.HTTP_400_BAD_REQUEST)
+Ensure that DEBUG is set to True in settings.py to see these log messages:
+
+python
+Copy code
+# settings.py
+DEBUG = True
+
+
+
+To combine email confirmation with JSON Web Token (JWT) authentication in Django Rest Framework (DRF), you need to implement a two-step authentication flow:
+
+User Registration and Email Confirmation: When a user registers, an email is sent with a link containing a token. The user clicks the link to verify their email.
+JWT Authentication: Once the email is confirmed, the user is allowed to authenticate using JWT, enabling access to protected resources.
+
+
+is_active = models.BooleanField(default=False)
+Explanation: The is_active field will be set to False by default. This means when a new user is created, they will not be considered active unless you explicitly set is_active=True.
+Use Case: This is commonly used in scenarios where you want users to verify their account (e.g., via email confirmation) before they can be considered active and use the system. For example:
+When users register, they are inactive by default.
+After confirming their email, their status is changed to active (is_active=True), allowing them to log in and access the app.
+
+
+
+2. is_active = models.BooleanField(default=True)
+Explanation: The is_active field will be set to True by default. This means when a new user is created, they will immediately be considered active and can use the system without any additional steps.
+Use Case: This is used when you want users to be active as soon as they register, without requiring additional confirmation (like email verification or admin approval). It's suitable for systems where account verification is not critical, or other mechanisms are used to ensure valid accounts.
+
+
+
+2. Generate Custom JWT Token (generate_activation_token)
+You can customize a JWT token to include the user's user_id and email. Here’s a basic function that generates the token:
+
+python
+Copy code
+import jwt
+from django.conf import settings
+from datetime import datetime, timedelta
+
+def generate_activation_token(user):
+    payload = {
+        'user_id': user.id,
+        'email': user.email,
+        'exp': datetime.utcnow() + timedelta(hours=24),  # Token expires in 24 hours
+        'iat': datetime.utcnow(),
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
+    return token
+
+
+
+. Decode the Activation Token (decode_activation_token)
+This function decodes the JWT token and retrieves the user_id.
+
+python
+Copy code
+import jwt
+from django.conf import settings
+
+def decode_activation_token(token):
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+        return payload.get('user_id')  # Return the user_id from the token payload
+    except jwt.ExpiredSignatureError:
+        return None  # Token has expired
+    except jwt.InvalidTokenError:
+        return None  # Invalid token
+
+
+
+You can use Python's collections.Counter to remove all occurrences of elements from a list or string. The Counter helps count the frequency of elements and can be utilized to filter out the unwanted elements.
+
+Here’s how to do this for both a list and a string:
+
+For a List
+To remove all occurrences of an element from a list:
+
+python
+Copy code
+from collections import Counter
+
+def remove_occurrences(lst, to_remove):
+    # Count the frequency of each element
+    counter = Counter(lst)
+    
+    # Filter out all elements that are in the to_remove list
+    result = [item for item in lst if item not in to_remove]
+    
+    return result
+
+# Example usage
+lst = [1, 2, 3, 4, 3, 2, 1, 5, 6, 1, 2]
+to_remove = [1, 2]
+print(remove_occurrences(lst, to_remove))  # Output: [3, 4, 3, 5, 6]
+For a String
+To remove all occurrences of certain characters from a string:
+
+python
+Copy code
+from collections import Counter
+
+def remove_occurrences_str(s, to_remove):
+    # Count the frequency of each character
+    counter = Counter(s)
+    
+    # Create a new string without the characters in to_remove
+    result = ''.join([char for char in s if char not in to_remove])
+    
+    return result
+
+# Example usage
+s = "hello world"
+to_remove = ['l', 'o']
+print(remove_occurrences_str(s, to_remove))  # Output: "he wrd"
+
+
+
+
+Comments:
+Correctness: The method is correct in creating a user using create_user (which handles password hashing internally) and setting the is_active field to False for email verification purposes.
+
+Unnecessary Code: The line # user.set_password(validated_data['password']) is commented out, which is fine. You don’t need to manually call set_password because create_user already handles password hashing for you.
+
+Suggestions for Improvement:
+Error Handling: It’s good practice to include some error handling in case the creation of the user fails.
+Consistency: Ensure that this method is consistent with your overall flow for sending the activation email. You could directly initiate the process of sending the verification email within this method if appropriate.
+Returning the User: You should return the user object at the end, as it’s generally expected in Django when overriding the create method.
+Improved Code Example:
+python
+Copy code
+def create(self, validated_data):
+    # Create the user with email and password (create_user hashes the password)
+    user = User.objects.create_user(
+        email=validated_data['email'],
+        password=validated_data['password']
+    )
+    user.is_active = False  # User will remain inactive until email verification
+    user.save()
+    
+    # Send email verification (if necessary, implement this logic here)
+    
+    return user  # Return the user instance
+Key Points:
+create_user already handles password hashing, so no need for set_password.
+Set is_active to False to ensure email verification before activation.
+The method is correct but should include a return user statement to complete the function.
+
+
+
+The error you are encountering ('NoneType' object has no attribute 'get_host') occurs because the request object is None or incomplete when passed to the send_activation_email function. Specifically, the error is raised when you attempt to use request.get_host() to get the domain of the current site in get_current_site(request).
+
+Potential Causes:
+Missing request object: You might not be passing the request correctly in your view or serializer.
+Non-HTTP context: This error can occur if you are trying to use get_current_site outside of an actual HTTP request (for example, in a signal or background task where request is not available).
+Fixes:
+Ensure request is passed correctly:
+
+Make sure the request object is passed into the serializer and the email sending function.
+Use get_host safely:
+
+Use a fallback mechanism if the request is None, such as defaulting to a predefined domain.
+Solution 1: Ensure request is passed
+In your create method, make sure the request is being passed correctly from the view to the serializer:
+
+Solution 2: Provide a Fallback for get_host
+If request is not always available, you can define a fallback for the domain when using get_current_site. Modify the send_activation_email function to handle this:
+
+
+
+
+Key Aspects of the ActivationView:
+JWT Token Decoding: The view decodes the JWT token to extract the user_id from the token's payload.
+User Activation: It checks if the user is already active, and if not, it activates the user and saves the changes to the database.
+Error Handling: It handles errors such as expired tokens, invalid tokens, and missing users (i.e., the user doesn't exist).
+
+
+
+From the code you posted, it looks like you're using JWT (JSON Web Token) for user activation, not uidb64. However, if you previously had some code that used uidb64 for email activation and have not fully removed or updated it, some references might still be lingering. The uidb64 method is typically used when working with Django's default token-based system for password resets and email confirmation, but your code seems to be using JWT exclusively now.
+
+Here are a few possible reasons why you might still see an error referencing uidb64:
+
+1. Old Code or Incomplete Cleanup
+If you previously used the uidb64 method for activation, you may have some leftover code in other parts of your project (such as in email templates or other views/serializers) that still reference it.
+Check if there's old code that uses uidb64 for generating the activation link in your email.
+2. Overwritten Function or Import
+If you're using any function or library from Django’s built-in email confirmation system (like Django’s password reset or built-in email confirmation), it may still be referencing uidb64.
+Look at the part of your code that sends the email or constructs the activation link (such as in your send_activation_email function) to ensure it doesn't rely on old uidb64 logic.
+3. Email Template or Helper Function
+It's possible that the email template you're using or a helper function for creating the email still includes uidb64 in the URL generation.
+Ensure that your email template uses the correct link format for JWT, which would be something
+
+1. Check for uidb64 References:
+Search your entire project for uidb64 to ensure there’s no lingering code that is still using this old method.
+
+You can search for this term in your codebase by using grep (on Linux/Mac) or the search function in your IDE:
+bash
+Copy code
+grep -r "uidb64" .
+
+2. Review Your Email Sending Code:
+Ensure that when you're sending the activation email, you're using the JWT token and not uidb64. Specifically, check your send_activation_email function:
+
+3. Check Your Activation URL:
+Double-check that your urls.py and activation email use JWT tokens like this:
+
+4. Old Token Generation Methods:
+If you had old token generation logic (like Django's default TokenGenerator), ensure you've fully switched to JWT and removed any references to uidb64.
+
+
